@@ -37,6 +37,20 @@ func BenchmarkFast(b *testing.B) {
 	}
 }
 
+func BenchmarkFastRotate(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
 func BenchmarkFastFor(b *testing.B) {
 	b.StopTimer()
 	for i := 0; i < b.N; i++ {
@@ -69,7 +83,7 @@ func TestUint(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		randomI := uint64(rand.Int63())
 		c := BeginCell()
-		err := c.StoreUInt(randomI, bits.Len64(randomI))
+		err := c.StoreUIntFast(randomI, bits.Len64(randomI))
 		if err != nil {
 			t.Fatal(err)
 			return
