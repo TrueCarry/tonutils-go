@@ -3,9 +3,91 @@ package cell
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"math/bits"
+	"math/rand"
 	"testing"
 )
+
+func BenchmarkUint(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUInt(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
+func BenchmarkFast(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUIntFast(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
+func BenchmarkFastFor(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUIntFastFor(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
+func BenchmarkFastSimple(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUIntFastSimple(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
+func TestUint(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		randomI := uint64(rand.Int63())
+		c := BeginCell()
+		err := c.StoreUInt(randomI, bits.Len64(randomI))
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+
+		res := c.EndCell()
+
+		u, _ := res.BeginParse().LoadUInt(bits.Len64(randomI))
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+		if u != randomI {
+			t.Fatal(errors.New("Not parsed"))
+			return
+		}
+	}
+}
 
 func TestCell(t *testing.T) {
 	c := BeginCell()

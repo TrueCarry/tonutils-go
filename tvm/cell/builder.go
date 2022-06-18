@@ -1,8 +1,10 @@
 package cell
 
 import (
+	"encoding/binary"
 	"errors"
 	"math/big"
+	"math/bits"
 
 	"github.com/xssnick/tonutils-go/address"
 )
@@ -66,6 +68,148 @@ func (b *Builder) MustStoreUInt(value uint64, sz int) *Builder {
 
 func (b *Builder) StoreUInt(value uint64, sz int) error {
 	return b.StoreBigInt(new(big.Int).SetUint64(value), sz)
+}
+
+func (b *Builder) StoreUIntFast(value uint64, sz int) error {
+	if sz > 64 {
+		panic(ErrTooBigSize.Error())
+	}
+
+	partByte := 0
+	if sz%8 != 0 {
+		partByte = 1
+	}
+	bytesToUse := (sz / 8) + partByte
+
+	bytes := make([]byte, bytesToUse)
+	if sz == 64 {
+		binary.BigEndian.PutUint64(bytes[(sz/8)-8:], value)
+	} else {
+		if bits.Len64(value) > sz {
+			panic(ErrTooBigSize.Error())
+		}
+
+		// manual
+		bytes[0] = byte(value >> 56)
+		if bits.Len64(value) > 8 {
+			bytes[1] = byte(value >> 48)
+		}
+		if bits.Len64(value) > 16 {
+			bytes[2] = byte(value >> 40)
+		}
+		if bits.Len64(value) > 24 {
+			bytes[3] = byte(value >> 32)
+		}
+		if bits.Len64(value) > 32 {
+			bytes[4] = byte(value >> 24)
+		}
+		if bits.Len64(value) > 40 {
+			bytes[5] = byte(value >> 16)
+		}
+		if bits.Len64(value) > 48 {
+			bytes[6] = byte(value >> 8)
+		}
+		if bits.Len64(value) > 56 {
+			bytes[7] = byte(value)
+		}
+	}
+
+	// check is value uses full bytes
+	if offset := sz % 8; offset > 0 {
+		add := byte(0)
+		// move bits to left side of bytes to fit into size
+		for i := len(bytes) - 1; i >= 0; i-- {
+			toMove := bytes[i] & (0xFF << offset) // get last bits
+			bytes[i] <<= 8 - offset               // move first bits to last
+			bytes[i] += add
+			add = toMove >> offset
+		}
+	}
+
+	return b.StoreSlice(bytes, sz)
+}
+
+func (b *Builder) StoreUIntFastFor(value uint64, sz int) error {
+	if sz > 64 {
+		panic(ErrTooBigSize.Error())
+	}
+
+	partByte := 0
+	if sz%8 != 0 {
+		partByte = 1
+	}
+	bytesToUse := (sz / 8) + partByte
+
+	bytes := make([]byte, bytesToUse)
+	if sz == 64 {
+		binary.BigEndian.PutUint64(bytes[:], value)
+	} else {
+		if bits.Len64(value) > sz {
+			panic(ErrTooBigSize.Error())
+		}
+
+		// for
+		for i := 0; i < bits.Len64(value)/8; i++ {
+			bytes[i] = byte(value >> (64 - ((i + 1) * 8)))
+		}
+	}
+
+	// check is value uses full bytes
+	if offset := sz % 8; offset > 0 {
+		add := byte(0)
+		// move bits to left side of bytes to fit into size
+		for i := len(bytes) - 1; i >= 0; i-- {
+			toMove := bytes[i] & (0xFF << offset) // get last bits
+			bytes[i] <<= 8 - offset               // move first bits to last
+			bytes[i] += add
+			add = toMove >> offset
+		}
+	}
+
+	return b.StoreSlice(bytes, sz)
+}
+
+func (b *Builder) StoreUIntFastSimple(value uint64, sz int) error {
+	if sz > 64 {
+		panic(ErrTooBigSize.Error())
+	}
+
+	partByte := 0
+	if sz%8 != 0 {
+		partByte = 1
+	}
+	bytesToUse := (sz / 8) + partByte
+
+	bytes := make([]byte, bytesToUse)
+	if sz == 64 {
+		binary.BigEndian.PutUint64(bytes[(sz/8)-8:], value)
+	} else {
+		if bits.Len64(value) > sz {
+			panic(ErrTooBigSize.Error())
+		}
+
+		//  simple
+		tmpBytes := make([]byte, 8)
+		binary.BigEndian.PutUint64(tmpBytes[:], value)
+		offset := (64 - bits.Len64(value)) / 8
+		copy(bytes[:], tmpBytes[offset:])
+
+	}
+
+	// check is value uses full bytes
+	if offset := sz % 8; offset > 0 {
+		add := byte(0)
+		// move bits to left side of bytes to fit into size
+		for i := len(bytes) - 1; i >= 0; i-- {
+			toMove := bytes[i] & (0xFF << offset) // get last bits
+			bytes[i] <<= 8 - offset               // move first bits to last
+			bytes[i] += add
+			add = toMove >> offset
+		}
+	}
+
+	return b.StoreSlice(bytes, sz)
+	// return b.StoreBigInt(new(big.Int).SetUint64(value), sz)
 }
 
 func (b *Builder) MustStoreBoolBit(value bool) *Builder {
