@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"math/bits"
 	"math/rand"
 	"testing"
@@ -51,39 +52,40 @@ func BenchmarkFastRotate(b *testing.B) {
 	}
 }
 
-func BenchmarkFastFor(b *testing.B) {
-	b.StopTimer()
-	for i := 0; i < b.N; i++ {
-		c := BeginCell()
-		randomI := uint64(rand.Int63())
+// func BenchmarkFastFor(b *testing.B) {
+// 	b.StopTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		c := BeginCell()
+// 		randomI := uint64(rand.Int63())
 
-		b.StartTimer()
-		for j := 0; j < 1000; j++ {
-			c.StoreUIntFastFor(randomI, bits.Len64(randomI))
-		}
-		b.StopTimer()
-	}
-}
+// 		b.StartTimer()
+// 		for j := 0; j < 1000; j++ {
+// 			c.StoreUIntFastFor(randomI, bits.Len64(randomI))
+// 		}
+// 		b.StopTimer()
+// 	}
+// }
 
-func BenchmarkFastSimple(b *testing.B) {
-	b.StopTimer()
-	for i := 0; i < b.N; i++ {
-		c := BeginCell()
-		randomI := uint64(rand.Int63())
+// func BenchmarkFastSimple(b *testing.B) {
+// 	b.StopTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		c := BeginCell()
+// 		randomI := uint64(rand.Int63())
 
-		b.StartTimer()
-		for j := 0; j < 1000; j++ {
-			c.StoreUIntFastSimple(randomI, bits.Len64(randomI))
-		}
-		b.StopTimer()
-	}
-}
+// 		b.StartTimer()
+// 		for j := 0; j < 1000; j++ {
+// 			c.StoreUIntFastSimple(randomI, bits.Len64(randomI))
+// 		}
+// 		b.StopTimer()
+// 	}
+// }
 
 func TestUint(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		randomI := uint64(rand.Int63())
 		c := BeginCell()
-		err := c.StoreUIntFast(randomI, bits.Len64(randomI))
+		log.Println("i", randomI)
+		err := c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -100,6 +102,50 @@ func TestUint(t *testing.T) {
 			t.Fatal(errors.New("Not parsed"))
 			return
 		}
+	}
+}
+
+func TestUintError(t *testing.T) {
+	randomI := uint64(4739111663495868)
+	c := BeginCell()
+	err := c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	res := c.EndCell()
+
+	u, _ := res.BeginParse().LoadUInt(bits.Len64(randomI))
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	if u != randomI {
+		t.Fatal(errors.New("Not parsed"))
+		return
+	}
+}
+
+func TestUintMax(t *testing.T) {
+	randomI := uint64(18446744073709551615)
+	c := BeginCell()
+	err := c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	res := c.EndCell()
+
+	u, _ := res.BeginParse().LoadUInt(bits.Len64(randomI))
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	if u != randomI {
+		t.Fatal(errors.New("Not parsed"))
+		return
 	}
 }
 

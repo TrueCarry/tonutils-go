@@ -134,49 +134,22 @@ func (b *Builder) StoreUIntFastRotate(value uint64, sz int) error {
 		panic(ErrTooBigSize.Error())
 	}
 
+	tmp := make([]byte, 8)
+
+	if sz < 64 {
+		if bits.Len64(value) > sz {
+			panic(ErrTooBigSize.Error())
+		}
+		value = bits.RotateLeft64(value, bits.LeadingZeros64(value))
+	}
+
+	binary.BigEndian.PutUint64(tmp, value)
 	partByte := 0
 	if sz%8 != 0 {
 		partByte = 1
 	}
-	bytesToUse := (sz / 8) + partByte
 
-	bytes := make([]byte, bytesToUse)
-	if sz == 64 {
-		binary.BigEndian.PutUint64(bytes[(sz/8)-8:], value)
-	} else {
-		if bits.Len64(value) > sz {
-			panic(ErrTooBigSize.Error())
-		}
-
-		if offset := sz % 8; offset > 0 {
-			value = bits.RotateLeft64(value, 8-offset)
-		}
-
-		bytes[0] = byte(value >> 56)
-		if bits.Len64(value) > 8 {
-			bytes[1] = byte(value >> 48)
-		}
-		if bits.Len64(value) > 16 {
-			bytes[2] = byte(value >> 40)
-		}
-		if bits.Len64(value) > 24 {
-			bytes[3] = byte(value >> 32)
-		}
-		if bits.Len64(value) > 32 {
-			bytes[4] = byte(value >> 24)
-		}
-		if bits.Len64(value) > 40 {
-			bytes[5] = byte(value >> 16)
-		}
-		if bits.Len64(value) > 48 {
-			bytes[6] = byte(value >> 8)
-		}
-		if bits.Len64(value) > 56 {
-			bytes[7] = byte(value)
-		}
-	}
-
-	return b.StoreSlice(bytes, sz)
+	return b.StoreSlice(tmp[:(sz/8)+partByte], sz)
 }
 
 func (b *Builder) StoreUIntFastFor(value uint64, sz int) error {
