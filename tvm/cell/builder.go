@@ -140,16 +140,64 @@ func (b *Builder) StoreUIntFastRotate(value uint64, sz int) error {
 		if bits.Len64(value) > sz {
 			panic(ErrTooBigSize.Error())
 		}
-		value = bits.RotateLeft64(value, bits.LeadingZeros64(value))
+		value <<= 64 - sz
 	}
 
 	binary.BigEndian.PutUint64(tmp, value)
-	partByte := 0
+	oneMore := 0
 	if sz%8 != 0 {
-		partByte = 1
+		oneMore = 1
 	}
 
-	return b.StoreSlice(tmp[:(sz/8)+partByte], sz)
+	bytes := tmp[:(sz/8)+oneMore]
+	return b.StoreSlice(bytes, sz)
+}
+
+func (b *Builder) StoreUIntFastInset(value uint64, sz int) error {
+	if sz > 64 {
+		panic(ErrTooBigSize.Error())
+	}
+
+	if sz < 64 {
+		if bits.Len64(value) > sz {
+			panic(ErrTooBigSize.Error())
+		}
+		value <<= 64 - sz
+	}
+
+	oneMore := 0
+	if sz%8 != 0 {
+		oneMore = 1
+	}
+
+	if b.bitsSz+sz >= 1024 {
+		return ErNotFit1024
+	}
+
+	unusedBits := 8 - (b.bitsSz % 8)
+	oneLess := 0
+	if unusedBits != 8 {
+		oneLess = 1
+	}
+
+	if unusedBits != 8 {
+		// bt := b.data[len(b.data)-1]
+		// firstByte := byte(value >> 56)
+		// bt = bt | (firstByte >> unusedBits)
+		// log.Printf("fb1 %08b %08b %08b\n", bt, firstByte, firstByte>>unusedBits)
+
+		b.data[len(b.data)-1] |= byte(value >> (56 + 8 - unusedBits))
+
+		value = value << unusedBits
+	}
+
+	tmp := make([]byte, 8)
+	binary.BigEndian.PutUint64(tmp, value)
+
+	b.data = append(b.data, tmp[:(sz/8)+oneMore-oneLess]...)
+	b.bitsSz += sz
+
+	return nil
 }
 
 func (b *Builder) StoreUIntFastFor(value uint64, sz int) error {

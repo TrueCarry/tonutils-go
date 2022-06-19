@@ -11,32 +11,32 @@ import (
 	"testing"
 )
 
-func BenchmarkUint(b *testing.B) {
-	b.StopTimer()
-	for i := 0; i < b.N; i++ {
-		c := BeginCell()
-		randomI := uint64(rand.Int63())
-		b.StartTimer()
-		for j := 0; j < 1000; j++ {
-			c.StoreUInt(randomI, bits.Len64(randomI))
-		}
-		b.StopTimer()
-	}
-}
+// func BenchmarkUint(b *testing.B) {
+// 	b.StopTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		c := BeginCell()
+// 		randomI := uint64(rand.Int63())
+// 		b.StartTimer()
+// 		for j := 0; j < 1000; j++ {
+// 			c.StoreUInt(randomI, bits.Len64(randomI))
+// 		}
+// 		b.StopTimer()
+// 	}
+// }
 
-func BenchmarkFast(b *testing.B) {
-	b.StopTimer()
-	for i := 0; i < b.N; i++ {
-		c := BeginCell()
-		randomI := uint64(rand.Int63())
+// func BenchmarkFast(b *testing.B) {
+// 	b.StopTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		c := BeginCell()
+// 		randomI := uint64(rand.Int63())
 
-		b.StartTimer()
-		for j := 0; j < 1000; j++ {
-			c.StoreUIntFast(randomI, bits.Len64(randomI))
-		}
-		b.StopTimer()
-	}
-}
+// 		b.StartTimer()
+// 		for j := 0; j < 1000; j++ {
+// 			c.StoreUIntFast(randomI, bits.Len64(randomI))
+// 		}
+// 		b.StopTimer()
+// 	}
+// }
 
 func BenchmarkFastRotate(b *testing.B) {
 	b.StopTimer()
@@ -47,6 +47,20 @@ func BenchmarkFastRotate(b *testing.B) {
 		b.StartTimer()
 		for j := 0; j < 1000; j++ {
 			c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
+		}
+		b.StopTimer()
+	}
+}
+
+func BenchmarkFastInset(b *testing.B) {
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		c := BeginCell()
+		randomI := uint64(rand.Int63())
+
+		b.StartTimer()
+		for j := 0; j < 1000; j++ {
+			c.StoreUIntFastInset(randomI, bits.Len64(randomI))
 		}
 		b.StopTimer()
 	}
@@ -83,9 +97,14 @@ func BenchmarkFastRotate(b *testing.B) {
 func TestUint(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		randomI := uint64(rand.Int63())
+		sz := bits.Len64(randomI)
+		if sz < 62 {
+			sz += 2
+		}
+
 		c := BeginCell()
 		log.Println("i", randomI)
-		err := c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
+		err := c.StoreUIntFastInset(randomI, sz)
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -93,7 +112,7 @@ func TestUint(t *testing.T) {
 
 		res := c.EndCell()
 
-		u, _ := res.BeginParse().LoadUInt(bits.Len64(randomI))
+		u, _ := res.BeginParse().LoadUInt(sz)
 		if err != nil {
 			t.Fatal(err)
 			return
@@ -105,25 +124,49 @@ func TestUint(t *testing.T) {
 	}
 }
 
-func TestUintError(t *testing.T) {
-	randomI := uint64(4739111663495868)
-	c := BeginCell()
-	err := c.StoreUIntFastRotate(randomI, bits.Len64(randomI))
-	if err != nil {
-		t.Fatal(err)
-		return
+func TestBuilder_StoreUIntFastInset(t *testing.T) {
+	type args struct {
+		value uint64
+		sz    int
 	}
-
-	res := c.EndCell()
-
-	u, _ := res.BeginParse().LoadUInt(bits.Len64(randomI))
-	if err != nil {
-		t.Fatal(err)
-		return
+	tests := []struct {
+		i uint64
+	}{
+		{i: 4739111663495868},
+		{i: 5577006791947779410},
+		// TODO: Add test cases.
 	}
-	if u != randomI {
-		t.Fatal(errors.New("Not parsed"))
-		return
+	for _, tt := range tests {
+		t.Run("counterr", func(t *testing.T) {
+			randomI := tt.i
+			c := BeginCell()
+
+			for i := 0; i < 2; i++ {
+				err := c.StoreUIntFastInset(randomI, bits.Len64(randomI))
+				if err != nil {
+					t.Fatal(err)
+					return
+				}
+			}
+
+			c2 := BeginCell()
+			c2.StoreUInt(randomI, bits.Len64(randomI))
+			c2.StoreUInt(randomI, bits.Len64(randomI))
+
+			res := c.EndCell()
+
+			for i := 0; i < 2; i++ {
+				u, err := res.BeginParse().LoadUInt(bits.Len64(randomI))
+				if err != nil {
+					t.Fatal(err)
+					return
+				}
+				if u != randomI {
+					t.Fatal(errors.New("Not parsed"))
+					return
+				}
+			}
+		})
 	}
 }
 
