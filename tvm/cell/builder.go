@@ -68,6 +68,7 @@ func (b *Builder) MustStoreUInt(value uint64, sz int) *Builder {
 
 func (b *Builder) StoreUInt(value uint64, sz int) error {
 	return b.StoreBigInt(new(big.Int).SetUint64(value), sz)
+	// return b.StoreUIntFastInset(value, sz)
 }
 
 func (b *Builder) StoreUIntFast(value uint64, sz int) error {

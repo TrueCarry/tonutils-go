@@ -2,7 +2,6 @@ package cell
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"hash/crc32"
 	"math"
@@ -80,15 +79,15 @@ func (c *Cell) ToBOCWithFlags(withCRC bool) []byte {
 }
 
 func calcCells(cell *Cell) int {
-	m := map[string]*Cell{}
+	m := map[uint32]*Cell{}
 	// calc unique cells
 	uniqCells(m, cell)
 
 	return len(m)
 }
 
-func uniqCells(m map[string]*Cell, cell *Cell) {
-	m[hex.EncodeToString(cell.Hash())] = cell
+func uniqCells(m map[uint32]*Cell, cell *Cell) {
+	m[cell.InternalHash()] = cell
 
 	for _, ref := range cell.refs {
 		uniqCells(m, ref)
@@ -98,13 +97,13 @@ func uniqCells(m map[string]*Cell, cell *Cell) {
 func flattenIndex(roots []*Cell) []*Cell {
 	var indexed []*Cell
 	var offset int
-	hashIndex := map[string]int{}
+	hashIndex := map[uint32]int{}
 
 	var doIndex func([]*Cell) []*Cell
 	doIndex = func(cells []*Cell) []*Cell {
 		var next [][]*Cell
 		for _, c := range cells {
-			h := hex.EncodeToString(c.Hash())
+			h := c.InternalHash()
 
 			id, ok := hashIndex[h]
 			if !ok {
@@ -127,7 +126,7 @@ func flattenIndex(roots []*Cell) []*Cell {
 				// reindex
 				for i, ci := range indexed {
 					// TODO: optimize
-					th := hex.EncodeToString(ci.Hash())
+					th := ci.InternalHash()
 
 					hashIndex[th] = i
 				}
@@ -146,7 +145,7 @@ func flattenIndex(roots []*Cell) []*Cell {
 	// we need to do it this way because we can have same cells but 2 diff object pointers
 	var indexSetter func(node *Cell)
 	indexSetter = func(node *Cell) {
-		node.index = hashIndex[hex.EncodeToString(node.Hash())]
+		node.index = hashIndex[node.InternalHash()]
 		for _, ref := range node.refs {
 			indexSetter(ref)
 		}
@@ -161,7 +160,10 @@ func flattenIndex(roots []*Cell) []*Cell {
 
 func (c *Cell) serialize(refIndexSzBytes int, isHash bool) []byte {
 	// copy
-	payload := append([]byte{}, c.BeginParse().MustLoadSlice(c.bitsSz)...)
+	payload := make([]byte, (c.bitsSz/8)+1)
+	copy(payload, c.data)
+	// payload := append([]byte{}, c.BeginParse().MustLoadSlice(c.bitsSz)...)
+	// payload := c.BeginParse().data
 
 	unusedBits := 8 - (c.bitsSz % 8)
 	if unusedBits != 8 {

@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"strings"
+	"sync"
 )
 
 type Cell struct {
@@ -95,10 +97,25 @@ func (c *Cell) dump(deep int, bin bool) string {
 	return str
 }
 
+var hash256 = sha256.New()
+var hashMutex = sync.Mutex{}
+
 func (c *Cell) Hash() []byte {
-	hash := sha256.New()
-	hash.Write(c.serialize(-1, true))
-	return hash.Sum(nil)
+	serialized := c.serialize(-1, true)
+
+	hashMutex.Lock()
+	hash256.Write(serialized)
+	sum := hash256.Sum(nil)
+	hash256.Reset()
+	hashMutex.Unlock()
+
+	return sum
+}
+
+func (c *Cell) InternalHash() uint32 {
+	h := fnv.New32a()
+	h.Write(c.serialize(-1, true))
+	return h.Sum32()
 }
 
 func (c *Cell) Sign(key ed25519.PrivateKey) []byte {
