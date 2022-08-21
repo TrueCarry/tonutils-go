@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/hex"
+	"log"
 	"math/big"
 	"testing"
 
@@ -70,6 +71,90 @@ func TestBOCWithDecode(t *testing.T) {
 		t.Log(hex.EncodeToString(boc))
 		t.Fatal("boc not same")
 	}
+}
+
+/*
+┌────┐     ┌────┐
+│ 3  │ ◀── │ 1  │
+└────┘     └────┘
+  │          │
+  │          │
+  ▼          ▼
+┌────┐     ┌────┐     ┌────┐
+│ 13 │     │ 2  │ ──▶ │ 11 │
+└────┘     └────┘     └────┘
+             │
+             │
+             ▼
+           ┌────┐
+           │ 10 │
+           └────┘
+             │
+             │
+             ▼
+           ┌────┐
+           │ 12 │
+           └────┘
+Flatten target - BF 1 2 3 10 11 13 12
+*/
+func TestBocFlatten(t *testing.T) {
+	cell1 := BeginCell()
+	cell1.StoreUInt(1, 8)
+
+	cell2 := BeginCell()
+	cell2.StoreUInt(2, 8)
+
+	cell3 := BeginCell()
+	cell3.StoreUInt(3, 8)
+
+	cell10 := BeginCell()
+	cell10.StoreUInt(10, 8)
+
+	cell11 := BeginCell()
+	cell11.StoreUInt(11, 8)
+
+	cell13 := BeginCell()
+	cell13.StoreUInt(13, 8)
+
+	cell12 := BeginCell()
+	cell12.StoreUInt(12, 8)
+
+	cell20 := BeginCell()
+	cell20.StoreUInt(20, 8)
+
+	cell12.StoreRef(cell20.EndCell())
+
+	cell10.StoreRef(cell12.EndCell())
+	// cell10.StoreRef(cell20.EndCell())
+
+	cell2.StoreRef(cell10.EndCell())
+	cell2.StoreRef(cell11.EndCell())
+
+	cell3.StoreRef(cell13.EndCell())
+
+	cell1.StoreRef(cell2.EndCell())
+	cell1.StoreRef(cell3.EndCell())
+	cell1.StoreRef(cell20.EndCell())
+
+	// bocRes := cell1.EndCell().ToBOC()
+
+	index := flattenIndex([]*Cell{cell1.EndCell()})
+	// topInex := topologicalSort([]*Cell{cell1.EndCell()})
+	// res := ""
+	for _, c := range index {
+		log.Println("index", c.index, c.BeginParse().MustLoadUInt(8))
+	}
+	log.Println("=====================")
+	// for _, c := range topInex {
+	// 	log.Println("topix", c.index, c.BeginParse().MustLoadUInt(8))
+	// }
+
+	// parsed, err := FromBOC(bocRes)
+	// if err != nil {
+	// 	t.Fail()
+	// }
+
+	// log.Println("parsed", parsed)
 }
 
 func TestSmallBOC(t *testing.T) {
