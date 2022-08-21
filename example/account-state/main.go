@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func main() {
 	client := liteclient.NewConnectionPool()
 
 	// connect to mainnet lite server
+	client.AddConnectionsFromConfigUrl(context.Background(), "https://ton-blockchain.github.io/testnet-global.config.json")
 	err := client.AddConnection(context.Background(), "135.181.140.212:13206", "K0t3+IWLOXHYMvMcrGZDPs+pn58a17LFbnXoQkKc2xw=")
 	if err != nil {
 		log.Fatalln("connection err: ", err.Error())
@@ -33,7 +36,8 @@ func main() {
 		return
 	}
 
-	addr := address.MustParseAddr("EQBPKiOuQu8QEGQk4hIb8o_r7JWdf-sn1OrQt1PFAD5fnvhc")
+	addr := address.MustParseAddr("kQCKt2WPGX-fh0cIAz38Ljd_OKQjoZE_cqk7QrYGsNP6wfP0") // jetton with code error
+	// addr := address.MustParseAddr("EQATChZBBPJww2xkfqgTmkgtTFm07ifDpCQLjCiM9Z8jdnC0") // getgems nft auction
 
 	res, err := api.GetAccount(ctx, b, addr)
 	if err != nil {
@@ -77,4 +81,14 @@ func main() {
 		lastHash = list[0].PrevTxHash
 		lastLt = list[0].PrevTxLT
 	}
+
+	log.Printf("hash: %x", res.Code.Hash())
+	codeCell := res.Code.ToBOC()
+	encoded := base64.StdEncoding.EncodeToString([]byte(codeCell))
+	log.Printf("Code: %s", encoded)
+	parsedCell, err := cell.FromBOC(codeCell)
+	if err != nil {
+		panic(err)
+	}
+	log.Println("Parsed acell", parsedCell)
 }

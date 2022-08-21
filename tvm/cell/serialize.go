@@ -24,7 +24,8 @@ func (c *Cell) ToBOC() []byte {
 
 func (c *Cell) ToBOCWithFlags(withCRC bool) []byte {
 	// recursively go through cells, build hash index and store unique in slice
-	orderCells := flattenIndex([]*Cell{c})
+	orderCells := flattenIndex([]*Cell{c}) // topologicalSort([]*Cell{c})
+	// flattenIndex([]*Cell{c})
 
 	// bytes needed to store num of cells
 	cellSizeBits := math.Log2(float64(len(orderCells)) + 1)
@@ -121,6 +122,7 @@ func flattenIndex(roots []*Cell) []*Cell {
 					next = append(next, c.refs)
 				}
 			} else { // if we already have such cell, we need to move it forward in order.
+				// log.Println("Index move", id)
 				// move to end
 				indexed = append(indexed, indexed[id])
 
@@ -154,6 +156,13 @@ func flattenIndex(roots []*Cell) []*Cell {
 			indexSetter(ref)
 		}
 	}
+
+	// for i, ci := range indexed {
+	// 	// TODO: optimize
+	// 	th := hex.EncodeToString(ci.Hash())
+
+	// 	hashIndex[th] = i
+	// }
 
 	for _, root := range roots {
 		indexSetter(root)
