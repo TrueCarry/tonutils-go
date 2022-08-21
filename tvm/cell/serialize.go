@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"hash/crc32"
-	"log"
 	"math"
 )
 
@@ -124,26 +123,12 @@ func flattenIndex(roots []*Cell) []*Cell {
 					next = append(next, c.refs)
 				}
 			} else { // if we already have such cell, we need to move it forward in order.
-				log.Println("Index move", id)
-
-				// before := ""
-				// for _, c := range indexed {
-				// 	before += fmt.Sprintf("%v,", c.BeginParse().MustLoadUInt(8))
-				// }
-
 				next = append(next, indexed[id].refs)
 				// move to end
 				indexed = append(indexed, indexed[id])
 
 				// remove from old position
 				indexed = append(indexed[:id], indexed[id+1:]...)
-
-				// after := ""
-				// for _, c := range indexed {
-				// 	after += fmt.Sprintf("%v,", c.BeginParse().MustLoadUInt(8))
-				// }
-
-				// log.Println("before, after", before, after)
 
 				// reindex
 				for i, ci := range indexed {
@@ -156,62 +141,24 @@ func flattenIndex(roots []*Cell) []*Cell {
 
 			}
 		}
-
-		// for _, n := range next {
-		// 	doIndex(n)
-		// }
-
-		// return ordered cells to write to boc
-		// return indexed
 	}
-	// doIndex(roots)
-	next = append(next, roots)
 
+	next = append(next, roots)
 	i := 0
 	for len(next) > i {
 		n := next[i]
 		i++
-		// for _, k := range next {
 		doIndex(n)
-		// break
-		// }
 	}
-
-	// after := ""
-	// for _, c := range indexed {
-	// 	after += fmt.Sprintf("%v,", c.BeginParse().MustLoadUInt(8))
-	// }
-	// log.Println("after index", after)
-
-	for i, ci := range indexed {
-		// TODO: optimize
-		i := i
-		th := hex.EncodeToString(ci.Hash())
-
-		hashIndex[th] = i
-	}
-
-	// after = ""
-	// for _, c := range indexed {
-	// 	after += fmt.Sprintf("%v,", c.BeginParse().MustLoadUInt(8))
-	// }
-	// log.Println("after re index", after)
 
 	// we need to do it this way because we can have same cells but 2 diff object pointers
 	var indexSetter func(node *Cell)
 	indexSetter = func(node *Cell) {
 		node.index = hashIndex[hex.EncodeToString(node.Hash())]
-		// log.Println("Node hash", node.Hash(), hashIndex[hex.EncodeToString(node.Hash())], node.BeginParse().MustLoadUInt(8))
 		for _, ref := range node.refs {
 			indexSetter(ref)
 		}
 	}
-
-	// after = ""
-	// for _, c := range indexed {
-	// 	after += fmt.Sprintf("%v,", c.BeginParse().MustLoadUInt(8))
-	// }
-	// log.Println("after setter", after)
 
 	for _, root := range indexed {
 		indexSetter(root)
